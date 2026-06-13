@@ -1,0 +1,9 @@
+
+
+```
+docker exec -it restic-client restic backup /data
+
+docker exec -it restic-client restic snapshots
+
+docker exec -it restic-client restic stats
+```

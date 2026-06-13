@@ -1,0 +1,51 @@
+services:
+  s3mock:
+    image: adobe/s3mock:latest
+    container_name: s3mock
+    ports:
+      - "9090:9090"
+      - "9191:9191"
+    environment:
+      - initialBuckets=restic-demo
+    volumes:
+      - s3mock_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/favicon.ico"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+      start_period: 2s
+
+  restic-init:
+    image: restic/restic:latest
+    container_name: restic-init
+    depends_on:
+      s3mock:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=mock-access-key
+      - AWS_SECRET_ACCESS_KEY=mock-secret-key
+      - RESTIC_REPOSITORY=s3:http://s3mock:9090/restic-demo
+      - RESTIC_PASSWORD=super-secret-password
+    entrypoint: >
+      sh -c "
+        restic init || echo 'Repository might already be initialized.'
+      "
+
+  restic-client:
+    image: restic/restic:latest
+    container_name: restic-client
+    depends_on:
+      s3mock:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=mock-access-key
+      - AWS_SECRET_ACCESS_KEY=mock-secret-key
+      - RESTIC_REPOSITORY=s3:http://s3mock:9090/restic-demo
+      - RESTIC_PASSWORD=super-secret-password
+    volumes:
+      - ./data_to_backup:/data:ro
+    entrypoint: ["sleep", "infinity"]
+
+volumes:
+  s3mock_data:
